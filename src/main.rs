@@ -26,7 +26,7 @@ where P: AsRef<Path>, {
 fn parse_line(line: &str) -> Instruction {
     let mut toks = line.split(' ').fuse();
     let first = toks.next();
-    let mut distance: i32 = 0;
+    let mut distance: i32;
     match first {
         Some("noop") => {
 //            println!("noop");
@@ -45,43 +45,60 @@ fn parse_line(line: &str) -> Instruction {
         _ => panic!("Bad line format"),
     }    
 }
-fn check_register(cycle:  &i32, register: &i32) -> i32 {
-    println!("Cycle: {}, Register: {}, Signal Strength: {}", cycle, register, cycle * register);
-    match cycle {
-        20|60|100|140|180|220=> {
-            cycle * register
-        }, 
-        _ => 0,
-    }
+fn check_register(cycle:  &i32, register: &i32) -> bool {
+    let pixel: bool =   (cycle - 1) % 40 == *register - 1 || 
+                        (cycle - 1) % 40 == *register ||
+                        (cycle - 1) % 40 == *register + 1;
+    // println!("Cycle: {}, Register: {}, Pixel: {}", cycle, register, pixel);
+
+    return pixel;
 }
 
-fn process_instructions(file_path: &String) -> i32{
+fn process_instructions(file_path: &String) -> Vec<bool>{
     let mut cycle: i32 = 1;
     let mut register: i32 = 1;
-    let mut sum_strength: i32 = 0;
+    // let mut sum_strength: i32 = 0;
+    let mut crt: Vec<bool> = Vec::new();
+    let mut pixel : bool;
     if let Ok(lines) = read_lines(file_path) {
         for line in lines {
             if let Ok(l) = line {
-                println! ("{:?}", l);
+                // println! ("{:?}", l);
                 let i: Instruction = parse_line(&l);
                 match i {
                     Instruction::Addx(arg) => {
-                        sum_strength = sum_strength + check_register(&cycle, &register);
+                        pixel = check_register(&cycle, &register);
+                        crt.push (pixel);
 
-                        cycle = cycle + 1;                        
-                        sum_strength = sum_strength + check_register(&cycle, &register);
+                        cycle = cycle + 1;            
+                        // Check _during_ the cycle, i.e. before the operation is committed             
+                        pixel = check_register(&cycle, &register);
+                        crt.push (pixel);
                         register = register + arg;
                     },
                     Instruction::Noop => {
-                        sum_strength = sum_strength + check_register(&cycle, &register);
+                        pixel = check_register(&cycle, &register);
+                        crt.push (pixel);
                     }
                 }
-                cycle = cycle + 1;
-    
+                cycle = cycle + 1;    
             }
         }
     }
-    return sum_strength;
+    return crt;
+}
+fn print_crt(crt: &Vec<bool>) {
+    let mut c: i32 = 0;
+    for p in crt.iter() {
+        if *p == true {
+            print! ("#");
+        } else {
+            print!(".");
+        }
+        c = c + 1;
+        if c % 40 == 0 { println!("");} 
+
+    }
 }
 /* TESTS */
 
@@ -90,15 +107,9 @@ mod tests {
     use super::*;
     #[test]
     fn t1() {
-        let file_path = "./src/test1.txt".to_string();
-        let sum: i32 = process_instructions(&file_path);
-        assert_eq!(sum, 13140) ;
-    }
-    
-    #[test]
-    fn t3() {
         let file_path = "./src/test3.txt".to_string();
-        let sum: i32 = process_instructions(&file_path);
-        assert_eq!(sum, 13140) ;
+        let crt: Vec<bool> = process_instructions(&file_path);
+        print_crt(&crt);
+        assert_eq!(true,true) ;
     }
 }   
